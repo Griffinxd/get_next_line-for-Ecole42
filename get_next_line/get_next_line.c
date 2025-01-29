@@ -6,118 +6,109 @@
 /*   By: ymanav <ymanav@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/02 16:45:05 by ymanav            #+#    #+#             */
-/*   Updated: 2025/01/28 17:31:08 by ymanav           ###   ########.fr       */
+/*   Updated: 2025/01/29 12:48:15 by ymanav           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
+#include <unistd.h>
 
-static void	replace_old(char *buff, char **newbuff)
+static char	*get_buffer(int fd, char *filepos)
 {
-	*newbuff = buff;
-	free(buff);
-}
-
-static char	*get_buffer(int fd, char *buffer)
-{
-	char	*temp;
-	char	*newbuffer;
+	char	*buffer;
 	int		bytesread;
 
-	temp = (char *)malloc(BUFFER_SIZE + 1 * sizeof(char));
-	if (temp == NULL)
+	buffer = (char *)malloc(BUFFER_SIZE + 1 * sizeof(char));
+	if (buffer == NULL)
 		return (NULL);
 	bytesread = 1;
-	while (!ft_strchr(buffer, '\n') && (bytesread != 0))
+	while (!ft_findnl(filepos) && (bytesread != 0))
 	{
-		bytesread = read(fd, temp, BUFFER_SIZE);
+		bytesread = read(fd, buffer, BUFFER_SIZE);
 		if (bytesread == -1)
 		{
-			freetwo(temp, buffer);
+			free(filepos);
+			free(buffer);
 			return (NULL);
 		}
-		temp[bytesread] = '\0';
-		if (buffer == NULL)
-			newbuffer = ft_strdup(temp);
-		else
-			newbuffer = ft_strjoin(buffer, temp);
-		replace_old(buffer, &newbuffer);
+		buffer[bytesread] = '\0';
+		filepos = ft_strjoin(filepos, buffer);
 	}
-	free(temp);
-	return (buffer);
+	free(buffer);
+	return (filepos);
 }
 
-static char	*get_line(const char *buffer)
+static char	*get_line(char *filepos)
 {
 	int		i;
 	char	*line;
 
-	if (!buffer[0])
+	if (!filepos[0])
 		return (NULL);
 	i = 0;
-	while (buffer[i] != '\0' && buffer[i] != '\n')
+	while (filepos[i] != '\0' && filepos[i] != '\n')
 		i++;
-	line = (char *)malloc(sizeof(char) * (i + 2));
+	if (ft_findnl(filepos))
+		line = (char *)malloc(sizeof(char) * (i + 2));
+	else
+		line = (char *)malloc(sizeof(char) * (i + 1));
 	if (line == NULL)
 		return (NULL);
 	i = 0;
-	while (buffer[i] != '\0' && buffer[i] != '\n')
+	while (filepos[i] != '\0' && filepos[i] != '\n')
 	{
-		line[i] = buffer[i];
+		line[i] = filepos[i];
 		++i;
 	}
-	if (buffer[i] == '\n')
-	{
-		line[i] = buffer[i];
-		i++;
-	}
+	if (filepos[i] == '\n')
+		line[i++] = '\n';
 	line[i] = '\0';
 	return (line);
 }
 
-static char	*set_buffer(char *buffer)
+static char	*set_buffer(char *filepos)
 {
 	char	*rest;
 	int		i;
 	int		j;
 
 	i = 0;
-	while (buffer[i] != '\0' && buffer[i] != '\n')
+	while (filepos[i] != '\0' && filepos[i] != '\n')
 		i++;
-	if (!buffer[i])
+	if (!filepos[i])
 	{
-		free(buffer);
+		free(filepos);
 		return (NULL);
 	}
-	rest = (char *)malloc(sizeof(char) * (ft_strlen(buffer) - i + 1));
+	rest = (char *)malloc(sizeof(char) * (ft_strlen(filepos) - i + 1));
 	if (rest == NULL)
 		return (NULL);
 	i++;
 	j = 0;
-	while (buffer[i] != '\0')
-		rest[j++] = buffer[i++];
+	while (filepos[i] != '\0')
+		rest[j++] = filepos[i++];
 	rest[j] = '\0';
-	free(buffer);
+	free(filepos);
 	return (rest);
 }
 
 char	*get_next_line(int fd)
 {
-	static char	*buffer = "";
+	static char	*filepos = NULL;
 	char		*line;
 
 	if (fd < 0 || BUFFER_SIZE <= 0)
 		return (NULL);
-	buffer = get_buffer(fd, buffer);
-	if (buffer == NULL)
+	filepos = get_buffer(fd, filepos);
+	if (filepos == NULL)
 		return (NULL);
-	line = get_line(buffer);
+	line = get_line(filepos);
 	if (line == NULL)
 	{
-		free(buffer);
-		buffer = NULL;
+		free(filepos);
+		filepos = NULL;
 		return (NULL);
 	}
-	buffer = set_buffer(buffer);
+	filepos = set_buffer(filepos);
 	return (line);
 }
